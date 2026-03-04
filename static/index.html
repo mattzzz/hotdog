@@ -1,0 +1,286 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Hotdog / Not Hotdog</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ok: #2ecc71;
+      --no: #e74c3c;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #000;
+      color: #fff;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* ── Camera button ── */
+
+    .snap-btn {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      border: 6px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease;
+      position: relative;
+    }
+
+    .snap-btn:active {
+      transform: scale(0.93);
+      border-color: rgba(255,255,255,0.35);
+    }
+
+    .snap-btn::after {
+      content: "";
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.10);
+      border: 3px solid rgba(255,255,255,0.25);
+    }
+
+    .snap-btn svg {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      opacity: 0.9;
+    }
+
+    .hint {
+      margin-top: 28px;
+      font-size: 15px;
+      font-weight: 500;
+      opacity: 0.5;
+      letter-spacing: 0.04em;
+    }
+
+    .title {
+      margin-bottom: 48px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      opacity: 0.35;
+    }
+
+    #fileInput { display: none; }
+
+    /* ── Spinner ── */
+
+    .spinner-wrap {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      pointer-events: none;
+    }
+    .spinner-wrap.show { display: flex; }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,0.15);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Overlay ── */
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      cursor: pointer;
+    }
+    .overlay.show { display: flex; }
+
+    .overlay-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+    }
+
+    .overlay-photo {
+      position: absolute;
+      inset: 0;
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+    }
+
+    .frame {
+      position: absolute;
+      inset: 12px;
+      border-radius: 24px;
+      border: 8px solid transparent;
+      opacity: 0;
+      animation: framePop 200ms ease-out forwards;
+    }
+    .frame.ok { border-color: var(--ok); box-shadow: 0 0 80px rgba(46,204,113,0.25); }
+    .frame.no { border-color: var(--no); box-shadow: 0 0 80px rgba(231,76,60,0.25); }
+
+    .result-label {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      opacity: 0;
+      animation: fadeUp 250ms ease-out 100ms forwards;
+    }
+
+    .result-label .big {
+      font-size: clamp(36px, 10vw, 64px);
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-shadow: 0 4px 40px rgba(0,0,0,0.5);
+      white-space: nowrap;
+    }
+
+    .result-label .score {
+      margin-top: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+
+    .result-label .big.ok { color: var(--ok); }
+    .result-label .big.no { color: var(--no); }
+
+    .tap-hint {
+      position: absolute;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      opacity: 0.4;
+      letter-spacing: 0.06em;
+    }
+
+    @keyframes framePop {
+      from { transform: scale(0.96); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    @keyframes fadeUp {
+      from { transform: translate(-50%, -40%); opacity: 0; }
+      to   { transform: translate(-50%, -50%); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="title">Hotdog / Not Hotdog</div>
+
+  <label class="snap-btn" for="fileInput">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+  </label>
+
+  <input type="file" accept="image/*" capture="environment" id="fileInput"/>
+
+  <div class="hint">Tap to snap a photo</div>
+
+  <!-- Spinner -->
+  <div class="spinner-wrap" id="spinner">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Result overlay -->
+  <div class="overlay" id="overlay">
+    <img class="overlay-photo" id="photo"/>
+    <div class="overlay-bg"></div>
+    <div class="frame" id="frame"></div>
+    <div class="result-label" id="resultLabel">
+      <div class="big" id="labelBig"></div>
+      <div class="score" id="labelScore"></div>
+    </div>
+    <div class="tap-hint">Tap anywhere to dismiss</div>
+  </div>
+
+<script>
+const fileInput  = document.getElementById("fileInput");
+const spinner    = document.getElementById("spinner");
+const overlay    = document.getElementById("overlay");
+const photo      = document.getElementById("photo");
+const frame      = document.getElementById("frame");
+const labelBig   = document.getElementById("labelBig");
+const labelScore = document.getElementById("labelScore");
+
+overlay.addEventListener("click", () => {
+  overlay.classList.remove("show");
+  URL.revokeObjectURL(photo.src);
+});
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length) predict(fileInput.files[0]);
+});
+
+async function predict(file) {
+  // Show photo immediately with spinner
+  photo.src = URL.createObjectURL(file);
+  overlay.classList.add("show");
+  frame.classList.remove("ok", "no");
+  labelBig.textContent = "";
+  labelScore.textContent = "";
+  spinner.classList.add("show");
+
+  const form = new FormData();
+  form.append("file", file);
+
+  try {
+    const resp = await fetch("/predict", { method: "POST", body: form });
+    const data = await resp.json();
+
+    spinner.classList.remove("show");
+
+    if (!resp.ok) {
+      overlay.classList.remove("show");
+      return;
+    }
+
+    const hot = data.is_hotdog;
+
+    frame.classList.add(hot ? "ok" : "no");
+
+    labelBig.className = "big " + (hot ? "ok" : "no");
+    labelBig.textContent = hot ? "HOT DOG" : "NOT HOT DOG";
+
+    labelScore.textContent = (data.score * 100).toFixed(1) + "% confidence";
+  } catch {
+    spinner.classList.remove("show");
+    overlay.classList.remove("show");
+  }
+
+  fileInput.value = "";
+}
+</script>
+</body>
+</html>
